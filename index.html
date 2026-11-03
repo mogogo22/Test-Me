@@ -599,7 +599,7 @@ function render(){cmSave();setTimeout(bcSync,0);
   if(D.sessions.length){const last=D.sessions[D.sessions.length-1].id;if(!sessOf(S.sid))S.sid=last;if(!sessOf(S.tsid))S.tsid=last}
   a.classList.toggle('quiet',QUIET);QUIET=false;
   if(!S.user||!me()){S.user=null;a.innerHTML=loginView();return}
-  const tch=!!me().teacher;if(tch!==/^t-/.test(S.tab))S.tab=tch?'t-q':'quiz';if(S.tab==='m-q'&&!isMod())S.tab='quiz';if((S.tab==='a-s'||S.tab==='a-c'||S.tab==='a-q')&&!isAdm())S.tab='quiz';
+  const tch=!!me().teacher;if(tch!==/^t-/.test(S.tab))S.tab=tch?'t-q':'quiz';if(S.tab==='m-q'&&!isMod())S.tab='quiz';if((S.tab==='a-s'||S.tab==='a-c')&&!isAdm())S.tab='quiz';if(S.tab==='a-q'&&!isAdm()&&!isQA())S.tab='quiz';
   const xl=tch?null:exLock();a.innerHTML=xl?exStudent(xl):(tch?teacherView():studentView());
   if(xl)exWire(xl);else if(S.tab==='lab'||S.tab==='t-c'||S.tab==='t-s'||S.tab==='pg'||S.tab==='t-pg')wireLab();
   if(!xl&&(S.tab==='pg'||S.tab==='t-pg'))pgWire();
@@ -623,6 +623,7 @@ function togglePw(){const i=$('#pw'),show=i.type==='password';i.type=show?'text'
 const TEACHER_H=['s:1abbb64e7b822d6e5567444c898335944c8cce7c2426a0dc26d944c4198c2f7d','c:3709548572'],SESSION_KEY='testme_s';
 const MOD_H=['s:17fc6059ffb56785e5d1600a58575d3096df67c3a119fdbacad4afde88987553','c:522791754'];
 const isMod=()=>false;
+const isQA=()=>!!(S.user==='you7ef'&&me()&&!me().teacher);
 async function hashPw(n,p){const s='testme|'+n+'|'+p;
   try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return 's:'+[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
   catch(e){let h=5381;for(const c of s)h=(h*33^c.charCodeAt(0))>>>0;return 'c:'+h}}
@@ -649,7 +650,7 @@ function logout(){S.user=null;try{localStorage.removeItem(SESSION_KEY)}catch(e){
 /* ---------- الطالب ---------- */
 function studentView(){
   const u=me(),p=pts(u),lv=level(p),inLv=p%XP_LEVEL,T=tier(lv),N=tier(lv+1);
-  const tabs=[['quiz','الأسئلة'],['lab','تمرين كود'],['snip','كودات'],['pg','🧪 المحرر'],['board','الترتيب'],['rep','تقريري'],['game','🏆 بطولة']].concat(Object.values(EX).some(e=>e.pub)?[['xres','📊 نتايج الامتحان']]:[]).concat(isMod()?[['m-q','🛡️ إدارة الأسئلة']]:[]).concat(isAdm()?[['a-s','👑 إدارة الطلاب'],['a-c','📂 حلول الطلاب'],['a-q','➕ أسئلة']]:[]);
+  const tabs=[['quiz','الأسئلة'],['lab','تمرين كود'],['snip','كودات'],['pg','🧪 المحرر'],['board','الترتيب'],['rep','تقريري'],['game','🏆 بطولة']].concat(Object.values(EX).some(e=>e.pub)?[['xres','📊 نتايج الامتحان']]:[]).concat(isMod()?[['m-q','🛡️ إدارة الأسئلة']]:[]).concat(isAdm()?[['a-s','👑 إدارة الطلاب'],['a-c','📂 حلول الطلاب'],['a-q','➕ أسئلة']]:[]).concat(isQA()&&!isAdm()?[['a-q','➕ أسئلة']]:[]);
   return hdr(`<span class="av g${T.g}" style="--c:${T.c};--c2:${T.c2}">${esc(u.name.slice(0,1).toUpperCase())}</span><div class="who"><span class="nm t${T.i} g${T.g}${u.name==='mogo'?' mg':''}" style="--c:${T.c};--c2:${T.c2}"><b>${esc(u.name)}</b></span><span class="ttl g${T.g}" style="--c:${T.c};--c2:${T.c2}" data-o="${T.o}">${T.e} ${T.t}</span></div><span class="sp"></span>${isMod()?'<span class="chip">🛡️ مساعد</span>':''}<span class="chip">المستوى ${lv}</span><span class="chip"><b class="cnt" data-k="pts" data-n="${p}">${p}</b> نقطة</span>`)+
   `<div class="tip" id="tip">${esc(tipFor())}</div>${isAdm()?bcCard()+shCard():''}
   <div class="card"><div class="row"><span class="mute">التقدم للمستوى ${lv+1}${N.i!==T.i?' — لقب «'+N.t+'» بيستناك':''}</span><div class="sp"></div><span class="mute">${inLv}/${XP_LEVEL}</span></div><div class="bar"><b style="width:${inLv/XP_LEVEL*100}%"></b></div></div>${dailyCard()}
@@ -1033,7 +1034,7 @@ function runJava0(src,inp,opt){opt=opt||{};const L=!!opt.live,IMP=new Set(),PK={
     if(is('{'))return blk();if(eat(';'))return()=>{};
     const t=T[p];if(!t)throw new JErr('الكود ناقص');
     if(t[0]==='i'){const w=t[1];
-      if(w==='if'){p++;ex('(');const c=ex0();ex(')');const a=stmt();let b=null;if(isw('else')){p++;b=stmt()}return e=>c(e)?a(e):(b&&b(e))}
+      if(w==='if'){p++;ex('(');const c=ex0();ex(')');if(is(';'))throw new JErr('فيه ";" زيادة بعد شرط ال if. كده الـ if بتنفّذ "ولا حاجة" والسطور اللي بعدها بتشتغل دايماً. شيل ال ";".');const a=stmt();let b=null;if(isw('else')){p++;b=stmt()}return e=>c(e)?a(e):(b&&b(e))}
       if(w==='while'){p++;ex('(');const c=ex0();ex(')');const b=stmt();return e=>{while(c(e)){tick();const r=loopSig(b(e));if(r===1)break;if(r)return r}}}
       if(w==='do'){p++;const b=stmt();if(!isw('while'))throw new JErr('متوقع while بعد do');p++;ex('(');const c=ex0();ex(')');ex(';');return e=>{do{tick();const r=loopSig(b(e));if(r===1)break;if(r)return r}while(c(e))}}
       if(w==='for'){p++;ex('(');
@@ -1330,7 +1331,7 @@ function qEditForm(){const q=D.questions.find(x=>x.id===S.eq);if(!q)return '';
 function saveQ(){const id=S.eq,o=[0,1,2,3].map(i=>$('#eo'+i).value.trim()),t=$('#eqt').value.trim(),x=$('#eqx').value.trim(),w=$('#eqw').value.trim(),a=+$('#eqa').value;
   if(!t||!x||!w||o.some(v=>!v)){$('#eqerr').textContent=' املا كل الحقول.';return}
   qWrite(l=>l.map(q=>q.id===id?Object.assign({},q,{topic:t,text:x,opts:o,ans:a,why:w}):q));S.eq=null;render()}
-  function aAddQ(){if(!isAdm()||!S.sid)return;const o=[0,1,2,3].map(i=>$('#o'+i).value.trim()),t=$('#qt').value.trim(),x=$('#qx').value.trim(),w=$('#qw').value.trim();
+  function aAddQ(){if(!(isAdm()||isQA())||!S.sid)return;const o=[0,1,2,3].map(i=>$('#o'+i).value.trim()),t=$('#qt').value.trim(),x=$('#qx').value.trim(),w=$('#qw').value.trim();
   if(!t||!x||!w||o.some(v=>!v)){$('#qerr').textContent=' املا كل الحقول من فضلك.';return}
   const q={id:uid('q'),sid:S.sid,topic:t,text:x,opts:o,ans:+$('#qa').value,why:w,pt:5,by:'adm'};
   qWrite(l=>l.concat([q]));render()}
@@ -1718,7 +1719,7 @@ function exListen(){exRef('exams').on('value',x=>{EX=x.val()||{};Object.values(E
 function exTInit(){if(XT)return;XT=1;exRef('exsub').on('value',x=>{EXS=x.val()||{};exRefresh()});exRef('exkeys').on('value',x=>{EXK=x.val()||{};exRefresh()})}
 function exLock(){if(!S.user||!me()||me().teacher)return null;let r=null;for(const id in EX){if(EX[id].st!=='live')continue;const k=id+'|'+S.user;if(!XW[k]){XW[k]=1;exRef('exsub/'+id+'/'+S.user).on('value',x=>{XS[k]=x.val();exRefresh()})}if(XS[k]!==undefined&&!(XS[k]&&XS[k].done)&&!r)r=id}return r}
 function exRefresh(){if(!S.user||!me())return;
-  if(me().teacher){if(S.tab==='t-x'){const a=document.activeElement;if(!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))render()}return}
+  if(me().teacher){if(S.tab==='t-x')exTRender();return}
   const l=exLock();const ps=JSON.stringify(Object.values(EX).map(e=>e&&e.pub?1:0));if(l!==XL||(!l&&ps!==window.XP)){window.XP=ps;const was=XL;XL=l;if(was&&!l){exFsOff();toast('✅ الامتحان خلص')}render()}}
 const exFsOn=()=>{try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}},exFsOff=()=>{try{document.fullscreenElement&&document.exitFullscreen().catch(()=>{})}catch(e){}};
 function exEnter(id){XG[id]=1;const k=id+'|'+S.user;if(!(XS[k]&&XS[k].j))exRef('exsub/'+id+'/'+S.user+'/j').set(exNow());exFsOn();render()}
@@ -2158,7 +2159,7 @@ function exGrade(id,n){const e=EX[id],K=EXK[id]||{},S2=EXS[id]||{},s=S2[n]||{},a
   const nav='<div class="row" style="align-items:center;gap:8px;margin-bottom:10px"><button class="ghost sm"'+(ix>0?'':' disabled')+' onclick="exGMove(\''+id+'\',-1)">→ السابق</button><select style="flex:1;min-width:140px" onchange="exGGo(this.value)">'+L.map(x=>'<option value="'+esc(x)+'"'+(x===n?' selected':'')+'>'+(exGd(e,S2[x])?'✅ ':'⬜ ')+esc(x)+'</option>').join('')+'</select><button class="ghost sm"'+(ix<L.length-1?'':' disabled')+' onclick="exGMove(\''+id+'\',1)">التالي ←</button></div><div class="exprog" style="margin-bottom:10px"><i style="width:'+(L.length?Math.round(ng/L.length*100):0)+'%"></i></div>';
   const body=e.qs.map((q,i)=>{const v=a[i],g=(s.g||{})[i];let b;
     if(q.t==='mcq'){const ok=v!=null&&+v===+K[i];b='<div>'+(v==null?'<span class="mute">ما جاوبش</span>':esc(q.o[v])+(ok?' ✅':' ❌ <span class="mute">(الصح: '+esc(q.o[K[i]])+')</span>'))+'</div><b>'+(ok?q.m:0)+' / '+q.m+'</b> <span class="mute">(تلقائي)</span>'}
-    else b='<div class="excode">'+(v?esc(v):'ما جاوبش')+'</div>'+(q.t==='code'&&v?'<div class="row"><button class="ghost sm" onclick="exRunStu(\''+id+'\',\''+n+'\','+i+')">▶ شغّل كود الطالب</button></div><div data-ok="rv|'+n+'|x'+i+'">'+(OUT['rv|'+n+'|x'+i]||'')+'</div>':'')+'<div class="row" style="align-items:center;margin-top:8px">'+q1(i,q.m,q.m,g,'✅ كامل ('+q.m+')')+q1(i,exRnd(q.m/2),q.m,g,'½ ('+exRnd(q.m/2)+')')+q1(i,0,q.m,g,'❌ صفر')+'<label class="exm">أو اكتب <input type="number" step="0.25" min="0" max="'+q.m+'" value="'+(g==null?'':g)+'" onchange="exG(\''+id+'\',\''+n+'\','+i+',this.value,'+q.m+')"></label><span class="mute">من '+q.m+'</span></div>';
+    else b='<div class="excode">'+(v?esc(v):'ما جاوبش')+'</div>'+(q.t==='code'&&v?'<div class="row"><button class="ghost sm" onclick="exRunStu(\''+id+'\',\''+n+'\','+i+')">▶ شغّل كود الطالب</button></div><div data-ok="rv|'+n+'|x'+i+'">'+(OUT['rv|'+n+'|x'+i]||'')+'</div>':'')+exSimBox(id,n,i,v)+'<div class="row" style="align-items:center;margin-top:8px">'+q1(i,q.m,q.m,g,'✅ كامل ('+q.m+')')+q1(i,exRnd(q.m/2),q.m,g,'½ ('+exRnd(q.m/2)+')')+q1(i,0,q.m,g,'❌ صفر')+'<label class="exm">أو اكتب <input type="number" step="0.25" min="0" max="'+q.m+'" value="'+(g==null?'':g)+'" onchange="exG(\''+id+'\',\''+n+'\','+i+',this.value,'+q.m+')"></label><span class="mute">من '+q.m+'</span></div>';
     const un=q.t!=='mcq'&&g==null;
     return '<div class="exq" id="xq'+i+'"'+(un?' style="border-color:var(--bad)"':'')+'><div class="exq-h"><span class="exnum">'+(i+1)+'</span><span class="tag">'+exTn[q.t]+'</span>'+(un?'<span class="chip">لسه ما اتصححش</span>':'')+'</div><div style="margin-bottom:8px">'+fmt(q.x)+'</div>'+b+'</div>'}).join('');
   return '<div class="card"><h3>إجابات '+esc(n)+' <span class="mute">('+(ix+1)+' من '+L.length+')</span></h3>'+nav+body+'<div class="row" style="align-items:center;margin-top:12px"><div class="chip" style="font-size:16px">المجموع: <span id="xtot">'+exScore(e,K,s).t+'</span> / '+e.total+'</div><span class="sp"></span><button class="ghost" onclick="S.xg=null;render()">رجوع للقائمة</button><button onclick="exGDone(\''+id+'\')">✅ تمام — الطالب التالي</button></div></div>'}
@@ -2171,7 +2172,86 @@ function exMon(id){const e=EX[id],K=EXK[id]||{},S2=EXS[id]||{},st=Object.values(
   +'<div class="exscroll"><table><tr><th>الطالب</th><th>الحالة</th><th>أجاب</th><th>خروج</th><th>الدرجة</th><th>التصحيح</th></tr>'+rows+'</table></div></div>'}
 async function exPub(id,on){if(on){const e=EX[id],S2=EXS[id]||{},left=exGL(id).filter(x=>!exGd(e,S2[x])).length;if(left&&!await ask('لسه '+left+' طالب ما اتصححوش، ودرجاتهم هتظهر ناقصة. تكمل؟'))return;if(!await ask('تظهر النتايج لكل الطلاب؟'))return}
   const e=EX[id],K=EXK[id]||{},S2=EXS[id]||{},res={};if(on)for(const n in S2)res[n]=exScore(e,K,S2[n]).t;exRef('exams/'+id).update({pub:!!on,res:on?res:null}).then(()=>toast(on?'✅ النتايج ظهرت للطلاب':'🙈 النتايج اتخفت'))}
-  DB.init().then(()=>{restore();render();DB.listen()});
+  /* ===== تحديث المدرس بدون ريستارت + مقارنة تشابه الأكواد ===== */
+var XTR=0,XTSIG='';
+function exTRender(){if(XTR)return;XTR=setTimeout(()=>{XTR=0;
+  if(!S.user||!me()||!me().teacher)return;
+  if(S.tab!=='t-x'){XTSIG='';return}
+  const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;
+  const e=S.xs&&EX[S.xs],K=(S.xs&&EXK[S.xs])||{},S2=(S.xs&&EXS[S.xs])||{};
+  const sig=JSON.stringify([Object.values(EX).map(x=>[x.id,x.st,x.title,(x.qs||[]).length,x.total,x.pub?1:0]),
+    e&&e.qs?Object.keys(S2).map(n=>{const s=S2[n]||{};return[n,s.done?1:0,s.auto||0,s.a?Object.keys(s.a).length:0,s.lv||0,exScore(e,K,s).t]}):0,
+    S.xg&&S2[S.xg]?S2[S.xg]:0]);
+  if(sig===XTSIG)return;XTSIG=sig;
+  const y=scrollY;QUIET=true;render();scrollTo(0,y)},1500)}
+const EX_KW=new Set('public private protected static void class interface extends implements if else for while do return break continue new true false null final int double long float boolean char byte short String Scanner JOptionPane System out in err Math Integer Double Boolean Character import switch case default try catch finally throw throws this super ArrayList List Random main args length println print printf equals'.split(' '));
+const exTok=c=>String(c||'').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm,'').match(/"(?:\\.|[^"\\])*"|[A-Za-z_$][\w$]*|\d+\.?\d*|\S/g)||[];
+function exLev(a,b){a=a.slice(0,400);b=b.slice(0,400);let p=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[b.length]}
+const exSimR=(a,b)=>{const m=Math.min(400,Math.max(a.length,b.length));return m?1-exLev(a,b)/m:0};
+function exSim(x,y){const a=exTok(x),b=exTok(y);if(Math.min(a.length,b.length)<8)return null;
+  const ab=t=>t.map(w=>/^[A-Za-z_$]/.test(w)&&!EX_KW.has(w)?'ID':w),r1=exSimR(a,b),r2=exSimR(ab(a),ab(b));
+  return{p:Math.round(r1*100),q:Math.round(Math.max(r1,r2)*100)}}
+function exSimBox(id,n,i,v){if(!v||!String(v).trim())return '';
+  const S2=EXS[id]||{},mu='<div class="mute" style="font-size:12px;margin-top:6px">';
+  if(exTok(v).length<8)return mu+'الإجابة قصيرة جدًا للمقارنة</div>';
+  const r=[];for(const m in S2){if(m===n)continue;const w=(S2[m].a||{})[i];if(!w||!String(w).trim())continue;const s=exSim(v,w);if(s&&s.q>=65)r.push({m,w,s})}
+  if(!r.length)return mu+'✅ مفيش تشابه ملحوظ مع زمايله</div>';
+  r.sort((x,y)=>y.s.q-x.s.q);
+  return r.slice(0,3).map(o=>{const hi=o.s.q>=85;
+    return '<details style="margin-top:6px"><summary style="cursor:pointer'+(hi?';color:var(--bad)':'')+'">'+(hi?'🚨':'⚠️')+' شبه كود <b>'+esc(o.m)+'</b> بنسبة '+o.s.p+'%'+(o.s.q>o.s.p+4?' ('+o.s.q+'% لو أسماء المتغيرات اتجاهلت)':'')+' · اضغط للمقارنة</summary><div class="excode" style="margin-top:6px">'+esc(o.w)+'</div></details>'}).join('')}
+    /* ===== بطولة من 3 لـ 10 لاعبين (الأدمن بس بيفتحها) ===== */
+const TQ_MIN=3,TQ_MAX=10;
+function tqPlan(n){let B=1;while(B<n)B*=2;const by=B-n,c=[(n-by)/2];for(let p=B/2;p>1;){p/=2;c.push(p)}return{B,by,c}}
+function tqLbl(P,r,i){const L=P.c.length;return r===L?'النهائي':(r===L-1&&P.c[r-1]===2)?'نصف النهائي '+(i+1):'الجولة '+r+' · مباراة '+(i+1)}
+function tqState(T,now){const o=T.order;if(T.status!=='play'||!T.start||!Array.isArray(o)||o.length<TQ_MIN||o.length>TQ_MAX)return null;
+  const P=tqPlan(o.length),rounds=[];let cur=o.slice(P.by),wait=o.slice(0,P.by),t0=T.start+3000,champ=null,doneAt=null;
+  for(let r=1;r<=P.c.length;r++){const ms=[],win=[];let end=0,all=true;
+    for(let i=0;i<cur.length;i+=2){const mid='r'+r+'m'+(i/2),m=tqMatch(T,mid,[cur[i],cur[i+1]],t0,now);m.mid=mid;ms.push(m);if(m.winner){win.push(m.winner);end=Math.max(end,m.end)}else all=false}
+    rounds.push(ms);if(!all)break;
+    if(r===P.c.length){champ=win[0];doneAt=end;break}
+    cur=wait.concat(win);wait=[];t0=end+5000}
+  return{rounds,plan:P,champ,doneAt}}
+function tqFocus(S0){const L=S0.rounds[S0.rounds.length-1];if(S0.champ)return L[0];
+  let my=null;for(const R of S0.rounds)for(const m of R)if(m.ps.includes(S.user))my=m;
+  if(my&&(!my.winner||my.winner===S.user))return my;
+  return L.find(m=>!m.winner)||my||L[0]}
+function tqMine(){const now=tqNow();let best=null;
+  for(const id of Object.keys(TQ.T).sort()){const T=TQ.T[id];if(!T||!T.status||!((T.players&&T.players[S.user])||T.by===S.user))continue;
+    if(T.status==='lobby'){if(now-(T.created||now)<40*60000)best=id;continue}
+    const s=tqState(T,now);if(!s)continue;if(s.champ&&now>s.doneAt+60000)continue;if(now-T.start>40*60000)continue;best=id}
+  return best}
+function tqNew(){if(!isAdm())return toast('البطولة بيفتحها الأدمن بس');if(tqMine())return toast('عندك بطولة شغالة فعلًا');
+  if(D.questions.length<5)return toast('محتاج 5 أسئلة على الأقل في البرنامج');
+  const n=Math.max(TQ_MIN,Math.min(TQ_MAX,+TQ.n||4)),r=firebase.database().ref('tour').push();
+  r.set({id:r.key,by:S.user,created:firebase.database.ServerValue.TIMESTAMP,status:'lobby',max:n})}
+function tqJoin(id){if(tqMine())return toast('إنت جوه بطولة فعلًا');const T0=TQ.T[id],mx=(T0&&T0.max)||4;
+  firebase.database().ref('tour/'+id+'/players').transaction(p=>{p=p||{};if(p[S.user])return p;if(Object.keys(p).length>=mx)return;p[S.user]=true;return p}).then(r=>{
+    if(!r.committed)return toast('البطولة اتملت');const p=r.snapshot.val()||{};if(Object.keys(p).length===mx)tqStart(id,Object.keys(p))})}
+function tqGo(id){if(!isAdm())return;const T=TQ.T[id];if(!T||T.status!=='lobby')return;const n=Object.keys(T.players||{});if(n.length<TQ_MIN)return toast('محتاج '+TQ_MIN+' لاعبين على الأقل');tqStart(id,n)}
+function tqStart(id,names){if(names.length<TQ_MIN||names.length>TQ_MAX)return;
+  const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  const o=sh(names),P=tqPlan(o.length),pool=D.questions.map(q=>q.id),mk=()=>{let x=[];while(x.length<TQ_R)x=x.concat(sh(pool));return x.slice(0,TQ_R)},qs={};
+  P.c.forEach((c,k)=>{for(let i=0;i<c;i++)qs['r'+(k+1)+'m'+i]=mk()});
+  firebase.database().ref('tour/'+id).update({order:o,qs,start:firebase.database.ServerValue.TIMESTAMP,status:'play'})}
+function tqHtml(){TQ.tm=null;const now=tqNow(),id=tqMine();
+  if(!id){const adm=isAdm(),L=Object.entries(TQ.T).filter(([i,T])=>T&&T.status==='lobby'&&Object.keys(T.players||{}).length<(T.max||4)&&now-(T.created||now)<40*60000).reverse();
+    return '<div class="card"><h3>🏆 بطولة البريك</h3><p class="mute">من '+TQ_MIN+' لـ '+TQ_MAX+' لاعبين، مباريات 1 ضد 1 بنظام خروج المغلوب. كل جولة سؤال، والأسرع في الإجابة الصح بياخد النقطة، وأول واحد يوصل لـ '+TQ_WIN+' بيكسب المباراة. البطل بياخد <b>'+TQ_PTS+' نقط</b>.</p>'
+     +(adm?'<div class="row" style="align-items:center"><label style="margin:0">عدد اللاعبين</label><select style="width:auto" onchange="TQ.n=+this.value">'+Array.from({length:TQ_MAX-TQ_MIN+1},(_,k)=>k+TQ_MIN).map(k=>'<option '+(k===(TQ.n||4)?'selected':'')+'>'+k+'</option>').join('')+'</select><button onclick="tqNew()">+ ابدأ بطولة جديدة</button></div>':'<p class="mute">البطولة بيفتحها الأدمن، استنى وهتظهرلك هنا.</p>')+'</div>'
+     +(L.length?L.map(([i,T])=>'<div class="card"><div class="row"><b>بطولة '+esc(T.by)+'</b><span class="mute">'+Object.keys(T.players||{}).map(esc).join('، ')+' ('+Object.keys(T.players||{}).length+'/'+(T.max||4)+')</span><div class="sp"></div><button class="sm" onclick="tqJoin(\''+i+'\')">ادخل</button></div></div>').join(''):'<div class="card"><span class="mute">مفيش بطولات مفتوحة دلوقتي.</span></div>')}
+  const T=TQ.T[id],host=T.by===S.user;
+  if(T.status==='lobby'){const ps=Object.keys(T.players||{}),mx=T.max||4;
+    return '<div class="card"><h3>🏆 مستنيين اللاعبين ('+ps.length+'/'+mx+')</h3><p>'+(ps.map(esc).join('، ')||'لسه محدش دخل')+'</p><p class="mute">'+(host?'إنت مشغّل البطولة. ابدأها لما يدخل '+TQ_MIN+' على الأقل، أو هتبدأ لوحدها لما يكتمل '+mx+'.':'البطولة بتبدأ لما المشغّل يبدأها أو لما يكتمل '+mx+' لاعبين.')+'</p>'
+      +(host?'<div class="row"><button '+(ps.length>=TQ_MIN?'':'disabled ')+'onclick="tqGo(\''+id+'\')">▶ ابدأ الآن ('+ps.length+')</button><button class="del sm" onclick="tqCancel(\''+id+'\')">إلغاء البطولة</button></div>':'')+'</div>'}
+  const S0=tqState(T,now);if(!S0)return '<div class="card"><p class="mute">⏳ بيجهّز البطولة…</p></div>';
+  const P=S0.plan,fm=tqFocus(S0),o=T.order||[];let my=null;S0.rounds.forEach(R=>R.forEach(m=>{if(m.ps.includes(S.user))my=m}));
+  const br=P.c.map((c,k)=>{const R=S0.rounds[k];let h='';for(let i=0;i<c;i++)h+='<div>'+(R&&R[i]?tqLine(R[i],tqLbl(P,k+1,i)):tqLbl(P,k+1,i)+': لسه')+'</div>';return h}).join('');
+  const nt=(!my&&P.by&&o.slice(0,P.by).includes(S.user)&&S0.rounds.length===1)?'🎟️ معاك تخطّي الجولة الأولى، بتتفرج لحد ما تبدأ جولتك.':(my&&my.winner&&my.winner!==S.user&&!S0.champ)?'😅 خسرت مباراتك، بتتفرج على الباقي.':'';
+  return '<div class="card pop">'+(S0.champ?'<div class="tqchamp">'+(S0.champ===S.user?'🏆 إنت بطل البطولة! +'+TQ_PTS+' نقط':'🏆 البطل: '+esc(S0.champ))+'</div>':'')
+   +'<div class="tqbr">'+br+'</div>'+(nt?'<div class="mute" style="text-align:center;margin-bottom:8px">'+nt+'</div>':'')+tqBody(id,fm.mid,fm,now)
+   +(!S0.champ&&fm.winner?'<div class="mute" style="text-align:center;margin-top:10px">استنى باقي المباريات، والجولة الجاية بتبدأ بعدها 🔥</div>':'')
+   +(host?'<div style="margin-top:10px"><button class="del sm" onclick="tqCancel(\''+id+'\')">إنهاء البطولة</button></div>':'')+'</div>'}
+    DB.init().then(()=>{restore();render();DB.listen()});
 </script>
 </body>
 </html>
